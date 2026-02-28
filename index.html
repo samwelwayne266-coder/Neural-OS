@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neural OS | Advanced</title>
+    <link rel="icon" href="favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;500&display=swap');
+        body { background: #010409; overflow: hidden; font-family: 'JetBrains Mono', monospace; color: #22d3ee; }
+        .glass { background: rgba(10, 15, 25, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(34, 211, 238, 0.2); border-radius: 8px; }
+        .window { position: absolute; display: none; flex-direction: column; box-shadow: 0 0 50px rgba(0,0,0,0.8); resize: both; overflow: hidden; min-width: 200px; min-height: 100px; }
+        .window.active { display: flex; }
+        .title-bar { cursor: move; padding: 10px 15px; background: rgba(34, 211, 238, 0.1); display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; letter-spacing: 2px; }
+        canvas { position: fixed; inset: 0; z-index: -1; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #22d3ee; }
+        .btn-neural { border: 1px solid #22d3ee55; padding: 5px 15px; font-size: 10px; transition: all 0.3s; }
+        .btn-neural:hover { background: #22d3ee22; box-shadow: 0 0 15px #22d3ee44; }
+@keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    #lock-screen {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(20px);
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; cursor: pointer;
+    }
+
+    /* Prevent text selection while dragging */
+* { 
+    user-select: none; 
+    -webkit-user-select: none; 
+}
+
+/* Move these OUTSIDE the .window { ... } block */
+#notification-center {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+}
+.toast {
+    background: rgba(34, 211, 238, 0.9);
+    color: black;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Seek Bar Styling */
+#media-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 2px;
+    background: rgba(34, 211, 238, 0.2);
+    outline: none;
+}
+#media-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    background: #22d3ee;
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #22d3ee;
+}
+    
+/* Update your existing task-icon to be bigger */
+.task-icon {
+    width: 45px; /* Increased from 35px */
+    height: 45px; /* Increased from 35px */
+    font-size: 22px; /* Bigger emojis */
+}
+
+/* The Start Button Style */
+.start-btn {
+    width: 45px;
+    height: 45px;
+    background: rgba(34, 211, 238, 0.2);
+    border: 1px solid #22d3ee;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(34,211,238,0.3);
+}
+
+/* Fullscreen utility class */
+.window.fullscreen {
+    width: 100vw !important;
+    height: calc(100vh - 80px) !important;
+    top: 0 !important;
+    left: 0 !important;
+    transition: all 0.3s ease;
+}
+
+/* The Play/Pause Icon Toggle */
+.state-icon {
+    width: 0; height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 8px solid #22d3ee;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.state-icon.paused {
+    width: 8px; height: 8px;
+    border: none;
+    border-left: 3px solid #22d3ee;
+    border-right: 3px solid #22d3ee;
+}
+
+/* Scaled up Desktop Icons */
+.absolute.pointer-events-none.z-50 button {
+    width: 70px !important;    /* Increased from 48px */
+    height: 70px !important;   /* Increased from 48px */
+    font-size: 30px !important; /* Bigger Emojis */
+    margin-bottom: 15px;       /* More spacing between them */
+    border-radius: 12px;       /* Smoother corners for larger icons */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Adjust the vertical positioning to account for larger size */
+#browser-btn { top: 105px !important; }
+#term-btn    { top: 190px !important; }
+#editor-btn  { top: 275px !important; }
+#files-btn   { top: 360px !important; }
+#stats-btn   { top: 445px !important; }
+#kill-btn    { top: 530px !important; }
+#lock-btn    { top: 615px !important; }
+
+#system-clock {
+    font-size: 11px;
+    font-weight: bold;
+    color: #22d3ee;
+    padding: 0 15px;
+    border-left: 1px solid rgba(34, 211, 238, 0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    min-width: 80px;
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+}
+    </style>
+</head>
+
+<div id="start-menu" class="glass fixed bottom-24 right-4 w-64 p-4 z-[10000] hidden flex-col gap-2 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
+    <div class="text-[10px] opacity-50 mb-2 border-b border-white/10 pb-1">NEURAL_CORE_PROGRAMS</div>
+    <button onclick="openWindow('term-win'); toggleStart()" class="btn-neural text-left w-full">TERMINAL</button>
+    <button onclick="openWindow('files-win'); toggleStart()" class="btn-neural text-left w-full">EXPLORER</button>
+    <button onclick="openWindow('browser-win'); toggleStart()" class="btn-neural text-left w-full">NAVIGATOR</button>
+    <button onclick="openWindow('stats-win'); toggleStart()" class="btn-neural text-left w-full">SYSTEM VITALS</button>
+    <button onclick="openWindow('media-win'); toggleStart()" class="btn-neural text-left w-full">MEDIA</button>
+    <button onclick="openWindow('editor-win'); toggleStart()" class="btn-neural text-left w-full">EDITOR</button>
+    <div class="mt-4 border-t border-white/10 pt-2">
+        <button onclick="location.reload()" class="text-red-400 text-[10px] hover:underline">REBOOT_SYSTEM</button>
+    </div>
+</div>
+
+<div id="taskbar" class="fixed bottom-4 left-1/2 -translate-x-1/2 h-14 glass px-4 flex items-center gap-4 z-[9999] transition-all duration-500">
+    </div>
+
+<div id="music-progress-card" class="glass fixed bottom-20 left-1/2 -translate-x-1/2 w-64 p-3 z-[9998] hidden flex flex-col gap-2">
+    <div class="flex justify-between items-center text-[10px]">
+        <div class="flex items-center">
+            <span id="mini-state-icon" class="state-icon cursor-pointer" onclick="toggleMiniPlayer(event)"></span>
+        </div>
+        <span id="track-time">LIVE</span>
+    </div>
+    </div>
+
+<style>
+    .task-icon {
+        width: 35px; height: 35px;
+        display: flex; items-center; justify-content: center;
+        background: rgba(34, 211, 238, 0.1);
+        border: 1px solid rgba(34, 211, 238, 0.3);
+        border-radius: 6px; cursor: pointer;
+        transition: all 0.2s; font-size: 18px;
+    }
+    .task-icon:hover { background: rgba(34, 211, 238, 0.3); transform: translateY(-3px); }
+
+</style>
+
+<body>
+    <audio id="global-neural-player" crossorigin="anonymous"></audio>
+    <div id="global-audio-status" style="position:fixed; bottom:80px; right:20px; z-index:999; font-size:9px; opacity:0.5; pointer-events:none;"></div>
+    <div id="lock-screen" onclick="this.style.display='none'; notify('Handshake Complete')">
+    <div class="text-cyan-400 animate-pulse font-bold tracking-[0.5em] text-xl">SYSTEM_LOCKED</div>
+    <div class="text-[10px] opacity-40 mt-2">CLICK TO INITIALIZE SYNAPSE</div>
+    </div>
+    <div id="notification-center"></div>
+    <canvas id="neuralCanvas"></canvas>
+
+<div class="absolute inset-0 pointer-events-none z-50">
+<button id="music-btn" onclick="openWindow('media-win')"
+        class="absolute pointer-events-auto w-12 h-12 glass hover:border-magenta-400 transition flex items-center justify-center" 
+        style="top:20px; left:20px;">🎵</button>
+
+    <button id="browser-btn" onclick="openWindow('browser-win')" 
+        class="absolute pointer-events-auto w-12 h-12 glass hover:border-cyan-400 transition flex items-center justify-center" 
+        style="top:80px; left:20px;">🌐</button>
+
+    <button id="term-btn" onclick="openWindow('term-win')" 
+        class="absolute pointer-events-auto w-12 h-12 glass hover:border-cyan-400 transition flex items-center justify-center" 
+        style="top:140px; left:20px;">⌨️</button>
+
+    <button id="editor-btn" onclick="openWindow('editor-win')" 
+        class="absolute pointer-events-auto w-12 h-12 glass hover:border-cyan-400 transition flex items-center justify-center" 
+        style="top:200px; left:20px;">📝</button>
+
+    <button id="files-btn" onclick="refreshFiles(); openWindow('files-win')" 
+        class="absolute pointer-events-auto w-12 h-12 glass hover:border-cyan-400 transition flex items-center justify-center" 
+        style="top:260px; left:20px;">📁</button>
+
+    <button id="stats-btn" onclick="openWindow('stats-win')" 
+        class="absolute pointer-events-auto w-12 h-12 glass hover:border-cyan-400 transition flex items-center justify-center" 
+        style="top:320px; left:20px;">📊</button>
+
+    <button id="kill-btn" onclick="killAllProcesses()" 
+        class="absolute pointer-events-auto w-12 h-12 glass border-red-900/30 hover:border-red-500 transition flex items-center justify-center text-red-500" 
+        style="top:380px; left:20px;">💀</button>
+
+    <button id="lock-btn" onclick="document.getElementById('lock-screen').style.display='flex'" 
+        class="absolute pointer-events-auto w-12 h-12 glass hover:border-red-500 transition flex items-center justify-center" 
+        style="top:440px; left:20px;">🔒</button>
+</div>
+
+    <div id="term-win" class="window glass w-[600px] h-[350px]" style="top:50px; left:200px;">
+        <div class="title-bar" onmousedown="dragWindow(event, 'term-win')">
+            <span>> NEURAL_CLI</span>
+            <div class="flex gap-3"></div>
+            <button onclick="toggleFullscreen('term-win')" class="hover:text-cyan-400">⛶</button>
+            <button onclick="closeWindow('term-win')" class="hover:text-red-500">✕</button>
+        </div>
+        <div class="p-4 flex flex-col h-full bg-black/40">
+            <div id="term-output" class="flex-1 text-[11px] overflow-auto whitespace-pre-wrap opacity-80 mb-2">Welcome to Synapse CLI. Type 'help' for available commands.</div>
+            <div class="flex gap-2 border-t border-white/10 pt-2">
+                <span class="text-cyan-500">λ</span>
+                <input id="term-input" type="text" class="bg-transparent border-none outline-none flex-1 text-[11px]" autofocus onkeydown="handleCmd(event)">
+            </div>
+        </div>
+    </div>
+
+    <div id="stats-win" class="window glass w-[300px]" style="top:400px; left:200px;">
+        <div class="title-bar" onmousedown="dragWindow(event, 'stats-win')">
+            <span>SYSTEM_VITALS</span>
+            <button onclick="toggleFullscreen('stats-win')" class="hover:text-cyan-400">⛶</button>
+            <button onclick="closeWindow('stats-win')">✕</button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <div class="flex justify-between text-[10px] mb-1"><span>CPU_LOAD</span><span id="cpu-val">0%</span></div>
+                <div class="h-1 bg-white/10 w-full"><div id="cpu-bar" class="h-full bg-cyan-500 transition-all" style="width: 0%"></div></div>
+            </div>
+            <div>
+                <div class="flex justify-between text-[10px] mb-1"><span>MEMORY</span><span id="mem-val">0%</span></div>
+                <div class="h-1 bg-white/10 w-full"><div id="mem-bar" class="h-full bg-magenta-500 bg-pink-500 transition-all" style="width: 0%"></div></div>
+            </div>
+            <div class="text-[9px] opacity-40 mt-4 italic">UPTIME: <span id="uptime-val">...</span></div>
+        </div>
+    </div>
+
+    <div id="editor-win" class="window glass w-[500px] h-[400px]" style="top:100px; left:500px;">
+        <div class="title-bar" onmousedown="dragWindow(event, 'editor-win')"><span>NEURAL_WRITER</span><button onclick="closeWindow('editor-win')">✕</button></div>
+        <div class="p-4 flex flex-col gap-2 h-full">
+            <input id="filename" type="text" placeholder="filename.txt" class="bg-black/20 p-2 border border-cyan-500/20 text-xs outline-none">
+            <textarea id="content" class="flex-1 bg-black/20 p-2 border border-cyan-500/20 text-xs outline-none resize-none"></textarea>
+            <button onclick="saveFile()" class="btn-neural">INJECT_DATA</button>
+        </div>
+    </div>
+
+<div id="files-win" class="window glass w-[600px] h-[400px]" style="top:200px; left:400px;">
+    <div class="title-bar" onmousedown="dragWindow(event, 'files-win')">
+        <span>ROOT_STORAGE</span>
+        <button onclick="toggleFullscreen('files-win')" class="hover:text-cyan-400">⛶</button>
+        <button onclick="closeWindow('files-win')">✕</button>
+    </div>
+    <div class="flex h-full overflow-hidden">
+        <div id="file-list" class="w-1/3 border-r border-white/10 p-2 overflow-auto text-[10px]"></div>
+        <div id="file-preview" class="w-2/3 p-4 bg-black/20 flex items-center justify-center text-[10px] text-cyan-500/50">
+            SELECT A FILE TO DECRYPT
+        </div>
+    </div>
+</div>
+
+    <div id="browser-win" class="window glass w-[800px] h-[500px]" style="top:80px; left:300px;">
+    <div class="title-bar" onmousedown="dragWindow(event, 'browser-win')">
+        <span>NEURAL_BROWSER</span>
+        <button onclick="toggleFullscreen('browser-win')" class="hover:text-cyan-400">⛶</button>
+        <button onclick="closeWindow('browser-win')">✕</button>
+    </div>
+    <div class="p-2 bg-black/20 flex gap-2 border-b border-white/10">
+    <input id="browser-url" type="text" onkeydown="if(event.key==='Enter') navigateBrowser()" placeholder="https://www.wikipedia.org" class="flex-1 bg-black/40 border border-cyan-500/30 p-1 text-[10px] outline-none">
+    <button onclick="navigateBrowser()" class="btn-neural px-4">GO</button>
+    
+    <button onclick="window.open(document.getElementById('browser-url').value, '_blank')" class="btn-neural px-2">↗</button>
+    </div>
+    <div class="flex-1 bg-white">
+        <iframe id="browser-frame" src="about:blank" class="w-full h-full border-none"></iframe>
+    </div>
+</div>
+
+    <script>
+        let audioCtx, analyzer, dataArray, source;
+const player = document.getElementById('global-neural-player');
+
+function initAudioAnalysis() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyzer = audioCtx.createAnalyser();
+    source = audioCtx.createMediaElementSource(player);
+    source.connect(analyzer);
+    analyzer.connect(audioCtx.destination);
+    analyzer.fftSize = 64;
+    dataArray = new Uint8Array(analyzer.frequencyBinCount);
+}
+async function navigateBrowser() {
+    let url = document.getElementById('browser-url').value;
+    const frame = document.getElementById('browser-frame');
+    if (!url.startsWith('http')) url = 'https://' + url;
+
+    // 1. YouTube Specialist (Always works)
+    if (url.includes('youtube.com/watch?v=')) {
+        const videoId = url.split('v=')[1].split('&')[0];
+        frame.src = `https://www.youtube.com/embed/${videoId}`;
+        notify("YouTube Embed Protocol Initialized.");
+        return;
+    }
+
+    // 2. The "Neural Bridge" for Hostile Sites (Google, etc.)
+    const hostileSites = ['google.com', 'facebook.com', 'github.com', 'amazon.com', 'twitter.com'];
+    const isHostile = hostileSites.some(site => url.toLowerCase().includes(site));
+
+    if (isHostile) {
+        notify("Site Security Detected. Opening Neural Bridge...");
+        // Opens a controlled popup instead of an iframe
+        window.open(url, 'NeuralBridge', 'width=1000,height=700,status=no,menubar=no');
+        frame.src = "about:blank"; // Keep the internal window clean
+        return;
+    }
+
+    // 3. Standard Proxy Fallback (For Wikipedia/Blogs)
+    notify("Routing through Neural Proxy...");
+    frame.src = `http://localhost:3001/api/proxy?url=${encodeURIComponent(url)}`;
+}
+
+function openWindow(id) {
+    const win = document.getElementById(id);
+    if (!win) return;
+
+    win.classList.add('active');
+    win.style.display = 'flex';
+
+    // If it's the browser and we killed the link earlier, put it back
+    if (id === 'browser-win') {
+        const iframe = win.querySelector('iframe');
+        if (iframe && (iframe.src === '' || iframe.src === 'about:blank' || !iframe.src)) {
+            // Put your preferred starting URL here
+            iframe.src = 'https://www.google.com/search?igu=1'; 
+        }
+    }
+
+    focusWin(id);
+    updateTaskbar();
+}
+
+function closeWindow(id) {
+    const win = document.getElementById(id);
+    if (!win) return;
+
+    // 1. Target all iframes
+    const iframes = win.querySelectorAll('iframe');
+    
+    iframes.forEach(iframe => {
+        // 2. The "Magic Link": Send a pause command to YouTube's internal player
+        // This works if your iframe URL has "enablejsapi=1" (see tip below)
+        iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        
+        // 3. The "Hard Reset": Wipe the source and put it back
+        const currentSrc = iframe.src;
+        iframe.src = ''; 
+        
+        // Use a tiny timeout to ensure the browser registers the "stop" 
+        // before we give it the URL back
+        setTimeout(() => {
+            iframe.src = currentSrc;
+        }, 50);
+    });
+
+    // 4. Hide the window
+    win.classList.remove('active');
+    win.style.display = 'none';
+    
+    if (typeof updateTaskbar === "function") updateTaskbar();
+}
+
+// UPDATE: Replace your old focusWin with this dynamic Z-Index version
+let highestZ = 100;
+function focusWin(id) {
+    highestZ++;
+    document.getElementById(id).style.zIndex = highestZ;
+}
+
+        // --- TERMINAL LOGIC ---
+        async function handleCmd(e) {
+            if (e.key !== 'Enter') return;
+            const input = e.target.value;
+            const output = document.getElementById('term-output');
+            
+            output.innerHTML += `\n<span class="text-white">> ${input}</span>`;
+            e.target.value = '';
+
+            if (input === 'reset-icons') {
+    localStorage.removeItem('iconPositions');
+    location.reload(); // Refresh the page
+    }
+
+            if (input === 'help') {
+                output.innerHTML += `\nAvailable: ping, dir, ls, ipconfig, hostname, cls, reset-icons`;
+            } else if (input === 'cls') {
+                output.innerHTML = '';
+            } else {
+                const res = await fetch('http://localhost:3001/api/terminal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: input })
+                });
+                const data = await res.json();
+                output.innerHTML += `\n${data.output}`;
+            }
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // --- SYSTEM STATS UPDATE ---
+        async function updateStats() {
+            try {
+                const res = await fetch('http://localhost:3001/api/stats');
+                const data = await res.json();
+                document.getElementById('cpu-val').innerText = data.cpu + '%';
+                document.getElementById('cpu-bar').style.width = data.cpu + '%';
+                document.getElementById('mem-val').innerText = data.mem + '%';
+                document.getElementById('mem-bar').style.width = data.mem + '%';
+                document.getElementById('uptime-val').innerText = data.uptime;
+            } catch (e) {}
+        }
+        setInterval(updateStats, 2000);
+
+        // --- DRAG LOGIC ---
+function dragWindow(e, id) {
+    const win = document.getElementById(id);
+    
+    // THE FIX: If the mouse is within 20px of the bottom or right edge, 
+    // ABORT the drag so the browser's native resize can take over.
+    const rect = win.getBoundingClientRect();
+    const padding = 20; 
+    if (e.clientX > rect.right - padding || e.clientY > rect.bottom - padding) {
+        return; 
+    }
+
+    focusWin(id);
+    
+    let sx = e.clientX - win.offsetLeft;
+    let sy = e.clientY - win.offsetTop;
+    
+    // Disable transition during drag
+    win.style.transition = "none";
+
+    const move = (ev) => { 
+        win.style.left = (ev.clientX - sx) + 'px'; 
+        win.style.top = (ev.clientY - sy) + 'px'; 
+    };
+
+    document.addEventListener('mousemove', move);
+    document.onmouseup = () => {
+        document.removeEventListener('mousemove', move);
+        win.style.transition = "all 0.3s"; // Re-enable smooth movement
+    };
+}
+
+        // --- ASYNC HELPERS ---
+        async function saveFile() {
+            const filename = document.getElementById('filename').value || 'untitled.txt';
+            const content = document.getElementById('content').value;
+            await fetch('http://localhost:3001/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename, content })
+            });
+            refreshFiles();
+        }
+
+        async function refreshFiles() {
+            const res = await fetch('http://localhost:3001/api/files');
+            const files = await res.json();
+            document.getElementById('file-list').innerHTML = files.map(f => `<div class="p-2 border-b border-white/5 hover:bg-white/10 cursor-pointer">/root/${f}</div>`).join('');
+        }
+
+        // --- NEURAL BACKGROUND ---
+        const canvas = document.getElementById('neuralCanvas');
+        const ctx = canvas.getContext('2d');
+        let pts = [];
+        window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+        window.onresize();
+        for(let i=0; i<60; i++) pts.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:Math.random()-0.5, vy:Math.random()-0.5});
+function animate() {
+    ctx.fillStyle = '#010409'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    let intensity = 0;
+    if (analyzer) {
+        analyzer.getByteFrequencyData(dataArray);
+        intensity = dataArray[0] / 255; // Use bass frequency
+    }
+
+    ctx.strokeStyle = intensity > 0.5 ? `rgba(34, 211, 238, ${0.1 + intensity})` : '#22d3ee22';
+    ctx.lineWidth = 1 + (intensity * 2);
+    ctx.beginPath();
+    
+    pts.forEach(p => {
+        // Points move faster during high intensity
+        p.x += p.vx * (1 + intensity * 5); 
+        p.y += p.vy * (1 + intensity * 5);
+        
+        if(p.x < 0 || p.x > canvas.width) p.vx *= -1; 
+        if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+        
+        pts.forEach(p2 => {
+            const d = Math.hypot(p.x - p2.x, p.y - p2.y);
+            if(d < 150 + (intensity * 50)) { // Connections reach further with bass
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p2.x, p2.y);
+            }
+        });
+    });
+    ctx.stroke();
+    requestAnimationFrame(animate);
+}
+        animate();
+        function notify(msg) {
+    const center = document.getElementById('notification-center');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = `[SYSTEM]: ${msg}`;
+    center.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Now you can add notify("Neural Proxy Active") inside your navigateBrowser function!
+let isMusicPlaying = false;
+const audioStream = new Audio('https://stream.zeno.fm/0r0xa792kwzuv'); // Lo-fi Radio
+
+function toggleMusic() {
+    isMusicPlaying = !isMusicPlaying;
+    const btn = document.getElementById('music-btn');
+    const card = document.getElementById('music-progress-card');
+    const stateIcon = document.getElementById('mini-state-icon');
+
+    if (isMusicPlaying) {
+        // THE FIX: Kill the local MP3 player before starting radio
+        player.pause(); 
+        document.getElementById('play-pause-btn').innerText = "PLAY";
+
+        audioStream.play();
+        btn.classList.add('border-cyan-400', 'animate-pulse');
+        card.classList.remove('hidden');
+        if(stateIcon) stateIcon.classList.add('paused'); // Show "pause" bars
+        notify("LO-FI_STREAM: ONLINE");
+    } else {
+        audioStream.pause();
+        btn.classList.remove('border-cyan-400', 'animate-pulse');
+        if(stateIcon) stateIcon.classList.remove('paused'); // Show triangle
+        notify("LO-FI_STREAM: OFFLINE");
+    }
+}
+    function killAllProcesses() {
+    const windows = document.querySelectorAll('.window');
+    windows.forEach(win => win.classList.remove('active'));
+    notify("CRITICAL: All neural pathways terminated.");
+}
+
+// --- TASKBAR MANAGEMENT ---
+function updateTaskbar() {
+    const taskbar = document.getElementById('taskbar');
+    const openWindows = document.querySelectorAll('.window.active');
+    const icons = { 
+        'browser-win': '🌐', 'term-win': '⌨️', 
+        'editor-win': '📝', 'files-win': '📁', 
+        'stats-win': '📊', 'media-win': '🎵' 
+    };
+    
+    // 1. App Icons (Left side of taskbar)
+    let html = `<div class="flex items-center gap-2">`;
+    html += Array.from(openWindows).map(win => 
+        `<div class="task-icon" onclick="focusWin('${win.id}')">${icons[win.id] || '⚙️'}</div>`
+    ).join('');
+    html += `</div>`;
+    
+    // 2. System Tray (Right side: Clock + Start)
+    html += `
+        <div class="flex items-center h-full ml-auto">
+            <div id="system-clock">
+                <span id="clock-time">00:00:00</span>
+                <span id="clock-date" style="font-size: 8px; opacity: 0.6;">00/00/2026</span>
+            </div>
+            <div class="start-btn ml-3" onclick="toggleStart()" style="background: rgba(34,211,238,0.3);">💠</div>
+        </div>
+    `;
+    
+    taskbar.innerHTML = html;
+}
+// Call it once on load to show the start button
+updateTaskbar();
+
+// --- UPDATED WINDOW CONTROLS ---
+function openWindow(id) {
+    document.getElementById(id).classList.add('active');
+    focusWin(id);
+    updateTaskbar();
+    notify(`Neural Link: ${id} active`);
+}
+
+function closeWindow(id) {
+    document.getElementById(id).classList.remove('active');
+    updateTaskbar();
+}
+
+// --- NEURAL MEMORY (SAVE/LOAD) ---
+function savePosition(id, top, left) {
+    const positions = JSON.parse(localStorage.getItem('iconPositions') || '{}');
+    positions[id] = { top, left };
+    localStorage.setItem('iconPositions', JSON.stringify(positions));
+}
+
+function loadPositions() {
+    const positions = JSON.parse(localStorage.getItem('iconPositions') || '{}');
+    Object.keys(positions).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.top = positions[id].top;
+            el.style.left = positions[id].left;
+            el.style.bottom = 'auto'; // Break the original CSS centering
+        }
+    });
+}
+
+// --- UPDATED DRAG ENGINE WITH MEMORY ---
+function makeIconDraggable(elementId) {
+    const el = document.getElementById(elementId);
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    let isDragging = false;
+    const snapThreshold = 30;
+
+    el.onmousedown = (e) => {
+        e.preventDefault();
+        isDragging = false;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        el.style.transition = "none";
+
+        const move = (ev) => {
+            if (Math.abs(ev.clientX - pos3) > 5 || Math.abs(ev.clientY - pos4) > 5) isDragging = true;
+            
+            pos1 = pos3 - ev.clientX;
+            pos2 = pos4 - ev.clientY;
+            pos3 = ev.clientX;
+            pos4 = ev.clientY;
+
+            let newTop = el.offsetTop - pos2;
+            let newLeft = el.offsetLeft - pos1;
+
+            // Snap logic
+            if (newLeft < snapThreshold) newLeft = 0;
+            if (newTop < snapThreshold) newTop = 0;
+            if (window.innerWidth - (newLeft + el.offsetWidth) < snapThreshold) newLeft = window.innerWidth - el.offsetWidth;
+            
+            el.style.top = newTop + "px";
+            el.style.left = newLeft + "px";
+        };
+
+        const stop = () => {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('mouseup', stop);
+            
+            // SAVE TO MEMORY
+            savePosition(elementId, el.style.top, el.style.left);
+            
+            setTimeout(() => { el.style.transition = "all 0.3s"; }, 50);
+        };
+
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', stop);
+    };
+
+    el.addEventListener('click', (e) => {
+        if (isDragging) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+        }
+    }, true);
+}
+
+// At the very bottom of your <script>
+loadPositions(); // 1. Load the memory first
+
+const iconIds = ['music-btn', 'browser-btn', 'term-btn', 'editor-btn', 'files-btn', 'stats-btn', 'kill-btn', 'lock-btn'];
+iconIds.forEach(id => makeIconDraggable(id)); // 2. Then enable dragging
+
+// --- UPDATED DRAG & DROP LOGIC ---
+window.addEventListener('dragover', (e) => e.preventDefault());
+
+window.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    
+    for (let file of files) {
+        const reader = new FileReader();
+        
+        reader.onload = async (event) => {
+            const content = event.target.result;
+            try {
+                await fetch('http://localhost:3001/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        filename: file.name, 
+                        content: content 
+                    })
+                });
+                notify(`NEURAL_INJECTION: ${file.name}`);
+                refreshFiles(); // Refresh explorer immediately
+            } catch (err) {
+                notify("ERROR: Transmission failed.");
+            }
+        };
+
+        // Use DataURL for images so the server knows it's an image
+        if (file.type.startsWith('image/')) {
+            reader.readAsDataURL(file);
+        } else {
+            reader.readAsText(file);
+        }
+    }
+});
+
+// --- UPDATED PREVIEW LOGIC ---
+async function refreshFiles() {
+    try {
+        const res = await fetch('http://localhost:3001/api/files');
+        const files = await res.json();
+        playlist = files.filter(f => f.match(/\.(mp3|wav|ogg|m4a)$/i));
+        const list = document.getElementById('file-list');
+        
+        list.innerHTML = files.map(f => {
+            // Detect images AND audio for the correct icon
+            const isImg = f.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+            const isAudio = f.match(/\.(mp3|wav|ogg|m4a)$/i);
+            const icon = isImg ? '🖼️' : (isAudio ? '🎵' : '📄');
+            
+            return `<div onclick="previewFile('${f}')" class="p-3 border-b border-white/5 hover:bg-cyan-500/20 cursor-pointer flex items-center gap-2 truncate transition-colors">
+                        <span>${icon}</span> <span>${f}</span>
+                    </div>`;
+        }).join('');
+    } catch (err) {
+        notify("STORAGE_LINK_ERROR");
+    }
+}
+
+async function previewFile(filename) {
+    const preview = document.getElementById('file-preview');
+    const isAudio = filename.match(/\.(mp3|wav|ogg|m4a)$/i);
+    const isImg = filename.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    
+    try {
+        if (isAudio) {
+            audioStream.pause();
+    isMusicPlaying = false;
+    document.getElementById('music-btn').classList.remove('animate-pulse');
+
+    initAudioAnalysis();
+    player.src = `http://localhost:3001/neural_storage/${filename}`;
+    player.play();
+            initAudioAnalysis();
+            player.src = `http://localhost:3001/neural_storage/${filename}`;
+            player.play();
+
+            audioStream.pause();
+    isMusicPlaying = false; 
+    
+    initAudioAnalysis();
+            // Update Media Window UI
+            const winName = document.querySelector('#media-win #track-name');
+            if (winName) winName.innerText = filename;
+            
+            const playBtn = document.getElementById('play-pause-btn');
+            if (playBtn) playBtn.innerText = "PAUSE";
+
+            preview.innerHTML = `
+                <div class="text-center">
+                    <div class="text-[40px] mb-2">🎵</div>
+                    <div class="text-cyan-400 mb-2 font-bold">${filename}</div>
+                    <div class="text-[9px] opacity-50 tracking-widest">SYNCED_TO_NEURAL_CORE</div>
+                </div>`;
+
+            openWindow('media-win');
+            notify(`STREAM_ACTIVE: ${filename}`);
+            // NEW: Force update the labels in the NEURAL_CORE_AUDIO window
+const mediaTrackName = document.querySelector('#media-win #track-name');
+if (mediaTrackName) mediaTrackName.innerText = filename;
+
+const mediaTimeDisplay = document.querySelector('#media-win #track-time');
+if (mediaTimeDisplay) mediaTimeDisplay.innerText = "0:00 / 0:00";
+        } 
+        else if (isImg) {
+            const imgUrl = `http://localhost:3001/neural_storage/${filename}?t=${Date.now()}`;
+            preview.innerHTML = `<img src="${imgUrl}" class="max-w-full max-h-full glass shadow-lg border border-cyan-500/30">`;
+        } 
+        else {
+            const res = await fetch(`http://localhost:3001/api/files/${filename}`);
+            const text = await res.text();
+            preview.innerHTML = `<pre class="text-[10px] text-cyan-400 w-full h-full overflow-auto whitespace-pre-wrap">${text}</pre>`;
+        }
+    } catch (e) {
+        preview.innerHTML = '<div class="text-red-500">DECRYPTION_FAILED</div>';
+    }
+}
+
+function minimizeWindow(id) {
+    const win = document.getElementById(id);
+    win.style.transform = "scale(0.5) translateY(500px)";
+    win.style.opacity = "0";
+    setTimeout(() => {
+        win.classList.remove('active');
+        updateTaskbar();
+    }, 300); // Matches the transition time
+    notify(`SYSTEM: ${id} backgrounded`);
+}
+
+// Update focusWin to "un-minimize"
+function focusWin(id) {
+    const win = document.getElementById(id);
+    if (!win.classList.contains('active')) {
+        win.classList.add('active');
+    }
+    highestZ++;
+    win.style.zIndex = highestZ;
+    win.style.transform = "scale(1) translateY(0)";
+    win.style.opacity = "1";
+    updateTaskbar();
+}
+setInterval(() => {
+    const card = document.getElementById('music-progress-card');
+    if (card.classList.contains('hidden')) return;
+
+    // Determine which audio source is active
+    const activePlayer = isMusicPlaying ? audioStream : player;
+    
+    if (activePlayer.duration) {
+        const percent = (activePlayer.currentTime / activePlayer.duration) * 100;
+        document.getElementById('track-bar').style.width = percent + "%";
+        
+        const mins = Math.floor(activePlayer.currentTime / 60);
+        const secs = Math.floor(activePlayer.currentTime % 60).toString().padStart(2, '0');
+        document.getElementById('track-time').innerText = `${mins}:${secs}`;
+    } else {
+        // If it's a live stream (no duration), show "LIVE"
+        document.getElementById('track-time').innerText = "LIVE";
+        document.getElementById('track-bar').style.width = "100%";
+    }
+}, 500);
+
+// --- NEW MEDIA PLAYER LOGIC ---
+let playlist = [];
+let currentTrackIndex = 0;
+
+function togglePlayback() {
+    const btn = document.getElementById('play-pause-btn');
+    const trackName = document.querySelector('#media-win #track-name');
+    
+    // 1. If a local file is already loaded/paused, handle that first
+    if (player.src && player.src !== "") {
+        if (player.paused) {
+            player.play();
+            btn.innerText = "PAUSE";
+        } else {
+            player.pause();
+            btn.innerText = "PLAY";
+        }
+        return;
+    }
+
+    // 2. Default Logic: If no file is loaded, toggle the Lo-fi Radio
+    isMusicPlaying = !isMusicPlaying;
+    const miniCard = document.getElementById('music-progress-card');
+    
+    if (isMusicPlaying) {
+        audioStream.play();
+        btn.innerText = "PAUSE";
+        if (trackName) trackName.innerText = "NEURAL_LOFI_RADIO";
+        miniCard.classList.remove('hidden');
+        notify("LO-FI_STREAM: ACTIVE");
+    } else {
+        audioStream.pause();
+        btn.innerText = "PLAY";
+        notify("LO-FI_STREAM: OFFLINE");
+    }
+}
+
+function playTrack(index) {
+    currentTrackIndex = index;
+    const filename = playlist[index];
+    
+    player.src = `http://localhost:3001/neural_storage/${filename}`;
+    
+    // Update labels in both locations
+    const winName = document.querySelector('#media-win #track-name');
+    const miniName = document.querySelector('#music-progress-card #track-name');
+    
+    if (winName) winName.innerText = filename;
+    if (miniName) miniName.innerText = filename;
+    
+    document.getElementById('play-pause-btn').innerText = "PAUSE";
+    player.play().catch(e => notify("CORE_ERROR: Interaction required"));
+}
+
+function mediaNext() {
+    if (playlist.length > 0) {
+        currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+        playTrack(currentTrackIndex);
+    }
+}
+
+function mediaPrev() {
+    if (playlist.length > 0) {
+        currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+        playTrack(currentTrackIndex);
+    }
+}
+
+// Auto-play next song when finished
+player.onended = () => mediaNext();
+
+// Sync the range slider and time display
+player.ontimeupdate = () => {
+    const slider = document.getElementById('media-slider');
+    const timeText = document.querySelector('#media-win #track-time'); // Targeted selection
+    const trackBar = document.getElementById('track-bar'); 
+
+    if (!isNaN(player.duration)) {
+        if (slider) {
+            slider.max = player.duration;
+            slider.value = player.currentTime;
+        }
+        
+        // Update Mini-Card Bar
+        const percent = (player.currentTime / player.duration) * 100;
+        if(trackBar) trackBar.style.width = percent + "%";
+
+        // Update Text Display
+        const cur = formatTime(player.currentTime);
+        const dur = formatTime(player.duration);
+        if (timeText) timeText.innerText = `${cur} / ${dur}`;
+    }
+};
+
+function formatTime(secs) {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+function toggleStart() {
+    const menu = document.getElementById('start-menu');
+    menu.classList.toggle('hidden');
+}
+
+function toggleFullscreen(id) {
+    const win = document.getElementById(id);
+    if (win.style.width === "100vw") {
+        // Restore to default size
+        win.style.width = "600px";
+        win.style.height = "400px";
+        win.style.top = "50px";
+        win.style.left = "200px";
+    } else {
+        // Go Fullscreen
+        win.style.width = "100vw";
+        win.style.height = "100vh";
+        win.style.top = "0";
+        win.style.left = "0";
+    }
+}
+
+function toggleMiniPlayer(e) {
+    // Prevent the click from triggering other window events
+    if(e) e.stopPropagation();
+
+    const stateIcon = document.getElementById('mini-state-icon');
+    const mainPlayBtn = document.getElementById('play-pause-btn');
+
+    // CASE 1: Local File is active
+    if (player.src && player.src !== "" && !player.src.includes('undefined')) {
+        if (player.paused) {
+            player.play();
+            stateIcon.classList.add('paused');
+            if(mainPlayBtn) mainPlayBtn.innerText = "PAUSE";
+        } else {
+            player.pause();
+            stateIcon.classList.remove('paused');
+            if(mainPlayBtn) mainPlayBtn.innerText = "PLAY";
+        }
+    } 
+    // CASE 2: Lo-fi Radio is active
+    else {
+        if (audioStream.paused) {
+            audioStream.play();
+            stateIcon.classList.add('paused');
+            isMusicPlaying = true;
+        } else {
+            audioStream.pause();
+            stateIcon.classList.remove('paused');
+            isMusicPlaying = false;
+        }
+    }
+}
+
+function updateClock() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-GB', { hour12: false });
+    const dateStr = now.toLocaleDateString('en-GB');
+    
+    const timeEl = document.getElementById('clock-time');
+    const dateEl = document.getElementById('clock-date');
+    
+    if (timeEl) timeEl.innerText = timeStr;
+    if (dateEl) dateEl.innerText = dateStr;
+}
+setInterval(updateClock, 1000);
+updateClock(); // Initial call
+
+    </script>
+
+<div id="media-win" class="window glass w-[320px]" style="top:150px; left:100px;" onclick="focusWin('media-win')">
+    <div class="title-bar" onmousedown="dragWindow(event, 'media-win')">
+        <span>NEURAL_CORE_AUDIO</span>
+        <button onclick="toggleFullscreen('media-win')" class="hover:text-cyan-400">⛶</button>
+        <button onclick="closeWindow('media-win')" class="hover:text-red-500 px-2">✕</button>
+    </div>
+    <div class="p-4 flex flex-col gap-4">
+        <div class="text-center">
+            <div id="track-name" class="text-[10px] font-bold truncate text-cyan-400">WAITING_FOR_INPUT...</div>
+            <div id="track-time" class="text-[9px] opacity-50 mt-1">0:00 / 0:00</div>
+        </div>
+
+        <input type="range" id="media-slider" value="0" step="0.1" class="w-full h-1 bg-white/10 appearance-none cursor-pointer" oninput="player.currentTime = this.value">
+
+        <div class="flex justify-between items-center gap-2">
+            <button class="btn-neural flex-1" onclick="mediaPrev()">«</button>
+            <button class="btn-neural flex-1" onclick="player.currentTime -= 10">-10s</button>
+            <button class="btn-neural flex-[2] font-bold" id="play-pause-btn" onclick="togglePlayback()">PAUSE</button>
+            <button class="btn-neural flex-1" onclick="player.currentTime += 10">+10s</button>
+            <button class="btn-neural flex-1" onclick="mediaNext()">»</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>
