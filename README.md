@@ -1,6 +1,6 @@
 # 🔐 NEURAL_OS
 > **DEVELOPER:** [WAYNE CORE](https://github.com/samwelwayne266-coder)  
-> **PROTOCOL:** LOCAL_ENCRYPTED_STORAGE
+> **PROTOCOL:** AN OPERATING SYSTEM MADE IN A WEBSITE
 
 ---
 
