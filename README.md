@@ -9,6 +9,11 @@
 
 ---
 
+> [!IMPORTANT]
+> ### [The github page](https://samwelwayne266-coder.github.io/Neural-OS/) is only for display purposes other features may or may not work follow the instructions that follow to unlock all potentials
+
+---
+
 ### 📥 LOCAL INSTALLATION PROTOCOL
 
 #### **Method A: The Release (Recommended)**
