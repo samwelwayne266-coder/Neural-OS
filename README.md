@@ -38,9 +38,9 @@
 
 Establish Connection: You can access the vault:
 
->On the PC: ```Open http://localhost:3000```
+On the PC: ```Open http://localhost:3000```
 
->On Other Devices (Phones/Tablets): 
+On Other Devices (Phones/Tablets): 
 
    1. Find your Local IP (Type ipconfig in CMD on Windows or ifconfig on Linux). 
 
