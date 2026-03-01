@@ -10,7 +10,7 @@
 ---
 
 > [!IMPORTANT]
-> ### [The github page](https://samwelwayne266-coder.github.io/Neural-OS/) is only for display purposes other features may or may not work follow the instructions that follow to unlock all potentials
+> ### [The github page](https://samwelwayne266-coder.github.io/Neural-OS/) is only for display purposes other features may or may not work. Follow the instructions that follow to unlock all features
 
 ---
 
