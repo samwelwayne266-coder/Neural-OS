@@ -27,7 +27,6 @@
     flex-direction: column; cursor: pointer;
     }
 
-    /* Prevent text selection while dragging */
 * { 
     user-select: none; 
     -webkit-user-select: none; 
@@ -330,7 +329,6 @@ async function navigateBrowser() {
     const frame = document.getElementById('browser-frame');
     if (!url.startsWith('http')) url = 'https://' + url;
 
-    // 1. YouTube Specialist (Always works)
     if (url.includes('youtube.com/watch?v=')) {
         const videoId = url.split('v=')[1].split('&')[0];
         frame.src = `https://www.youtube.com/embed/${videoId}`;
@@ -338,19 +336,16 @@ async function navigateBrowser() {
         return;
     }
 
-    // 2. The "Neural Bridge" for Hostile Sites (Google, etc.)
     const hostileSites = ['google.com', 'facebook.com', 'github.com', 'amazon.com', 'twitter.com'];
     const isHostile = hostileSites.some(site => url.toLowerCase().includes(site));
 
     if (isHostile) {
         notify("Site Security Detected. Opening Neural Bridge...");
-        // Opens a controlled popup instead of an iframe
         window.open(url, 'NeuralBridge', 'width=1000,height=700,status=no,menubar=no');
-        frame.src = "about:blank"; // Keep the internal window clean
+        frame.src = "about:blank"; 
         return;
     }
 
-    // 3. Standard Proxy Fallback (For Wikipedia/Blogs)
     notify("Routing through Neural Proxy...");
     frame.src = `http://localhost:3001/api/proxy?url=${encodeURIComponent(url)}`;
 }
@@ -362,11 +357,9 @@ function openWindow(id) {
     win.classList.add('active');
     win.style.display = 'flex';
 
-    // If it's the browser and we killed the link earlier, put it back
     if (id === 'browser-win') {
         const iframe = win.querySelector('iframe');
         if (iframe && (iframe.src === '' || iframe.src === 'about:blank' || !iframe.src)) {
-            // Put your preferred starting URL here
             iframe.src = 'https://www.google.com/search?igu=1'; 
         }
     }
@@ -379,40 +372,32 @@ function closeWindow(id) {
     const win = document.getElementById(id);
     if (!win) return;
 
-    // 1. Target all iframes
     const iframes = win.querySelectorAll('iframe');
     
     iframes.forEach(iframe => {
-        // 2. The "Magic Link": Send a pause command to YouTube's internal player
-        // This works if your iframe URL has "enablejsapi=1" (see tip below)
         iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
         
-        // 3. The "Hard Reset": Wipe the source and put it back
         const currentSrc = iframe.src;
         iframe.src = ''; 
         
-        // Use a tiny timeout to ensure the browser registers the "stop" 
-        // before we give it the URL back
         setTimeout(() => {
             iframe.src = currentSrc;
         }, 50);
     });
 
-    // 4. Hide the window
+
     win.classList.remove('active');
     win.style.display = 'none';
     
     if (typeof updateTaskbar === "function") updateTaskbar();
 }
 
-// UPDATE: Replace your old focusWin with this dynamic Z-Index version
 let highestZ = 100;
 function focusWin(id) {
     highestZ++;
     document.getElementById(id).style.zIndex = highestZ;
 }
 
-        // --- TERMINAL LOGIC ---
         async function handleCmd(e) {
             if (e.key !== 'Enter') return;
             const input = e.target.value;
@@ -423,7 +408,7 @@ function focusWin(id) {
 
             if (input === 'reset-icons') {
     localStorage.removeItem('iconPositions');
-    location.reload(); // Refresh the page
+    location.reload(); 
     }
 
             if (input === 'help') {
@@ -442,7 +427,6 @@ function focusWin(id) {
             output.scrollTop = output.scrollHeight;
         }
 
-        // --- SYSTEM STATS UPDATE ---
         async function updateStats() {
             try {
                 const res = await fetch('http://localhost:3001/api/stats');
@@ -456,12 +440,9 @@ function focusWin(id) {
         }
         setInterval(updateStats, 2000);
 
-        // --- DRAG LOGIC ---
 function dragWindow(e, id) {
     const win = document.getElementById(id);
     
-    // THE FIX: If the mouse is within 20px of the bottom or right edge, 
-    // ABORT the drag so the browser's native resize can take over.
     const rect = win.getBoundingClientRect();
     const padding = 20; 
     if (e.clientX > rect.right - padding || e.clientY > rect.bottom - padding) {
@@ -473,7 +454,6 @@ function dragWindow(e, id) {
     let sx = e.clientX - win.offsetLeft;
     let sy = e.clientY - win.offsetTop;
     
-    // Disable transition during drag
     win.style.transition = "none";
 
     const move = (ev) => { 
@@ -484,11 +464,10 @@ function dragWindow(e, id) {
     document.addEventListener('mousemove', move);
     document.onmouseup = () => {
         document.removeEventListener('mousemove', move);
-        win.style.transition = "all 0.3s"; // Re-enable smooth movement
+        win.style.transition = "all 0.3s"; 
     };
 }
 
-        // --- ASYNC HELPERS ---
         async function saveFile() {
             const filename = document.getElementById('filename').value || 'untitled.txt';
             const content = document.getElementById('content').value;
@@ -506,7 +485,7 @@ function dragWindow(e, id) {
             document.getElementById('file-list').innerHTML = files.map(f => `<div class="p-2 border-b border-white/5 hover:bg-white/10 cursor-pointer">/root/${f}</div>`).join('');
         }
 
-        // --- NEURAL BACKGROUND ---
+
         const canvas = document.getElementById('neuralCanvas');
         const ctx = canvas.getContext('2d');
         let pts = [];
@@ -520,7 +499,7 @@ function animate() {
     let intensity = 0;
     if (analyzer) {
         analyzer.getByteFrequencyData(dataArray);
-        intensity = dataArray[0] / 255; // Use bass frequency
+        intensity = dataArray[0] / 255; 
     }
 
     ctx.strokeStyle = intensity > 0.5 ? `rgba(34, 211, 238, ${0.1 + intensity})` : '#22d3ee22';
@@ -528,7 +507,6 @@ function animate() {
     ctx.beginPath();
     
     pts.forEach(p => {
-        // Points move faster during high intensity
         p.x += p.vx * (1 + intensity * 5); 
         p.y += p.vy * (1 + intensity * 5);
         
@@ -537,7 +515,7 @@ function animate() {
         
         pts.forEach(p2 => {
             const d = Math.hypot(p.x - p2.x, p.y - p2.y);
-            if(d < 150 + (intensity * 50)) { // Connections reach further with bass
+            if(d < 150 + (intensity * 50)) {
                 ctx.moveTo(p.x, p.y);
                 ctx.lineTo(p2.x, p2.y);
             }
@@ -556,9 +534,8 @@ function animate() {
     setTimeout(() => toast.remove(), 3000);
 }
 
-// Now you can add notify("Neural Proxy Active") inside your navigateBrowser function!
 let isMusicPlaying = false;
-const audioStream = new Audio('https://stream.zeno.fm/0r0xa792kwzuv'); // Lo-fi Radio
+const audioStream = new Audio('https://stream.zeno.fm/0r0xa792kwzuv'); 
 
 function toggleMusic() {
     isMusicPlaying = !isMusicPlaying;
@@ -567,19 +544,18 @@ function toggleMusic() {
     const stateIcon = document.getElementById('mini-state-icon');
 
     if (isMusicPlaying) {
-        // THE FIX: Kill the local MP3 player before starting radio
         player.pause(); 
         document.getElementById('play-pause-btn').innerText = "PLAY";
 
         audioStream.play();
         btn.classList.add('border-cyan-400', 'animate-pulse');
         card.classList.remove('hidden');
-        if(stateIcon) stateIcon.classList.add('paused'); // Show "pause" bars
+        if(stateIcon) stateIcon.classList.add('paused'); 
         notify("LO-FI_STREAM: ONLINE");
     } else {
         audioStream.pause();
         btn.classList.remove('border-cyan-400', 'animate-pulse');
-        if(stateIcon) stateIcon.classList.remove('paused'); // Show triangle
+        if(stateIcon) stateIcon.classList.remove('paused'); 
         notify("LO-FI_STREAM: OFFLINE");
     }
 }
@@ -589,7 +565,6 @@ function toggleMusic() {
     notify("CRITICAL: All neural pathways terminated.");
 }
 
-// --- TASKBAR MANAGEMENT ---
 function updateTaskbar() {
     const taskbar = document.getElementById('taskbar');
     const openWindows = document.querySelectorAll('.window.active');
@@ -599,14 +574,12 @@ function updateTaskbar() {
         'stats-win': '📊', 'media-win': '🎵' 
     };
     
-    // 1. App Icons (Left side of taskbar)
     let html = `<div class="flex items-center gap-2">`;
     html += Array.from(openWindows).map(win => 
         `<div class="task-icon" onclick="focusWin('${win.id}')">${icons[win.id] || '⚙️'}</div>`
     ).join('');
     html += `</div>`;
     
-    // 2. System Tray (Right side: Clock + Start)
     html += `
         <div class="flex items-center h-full ml-auto">
             <div id="system-clock">
@@ -619,10 +592,8 @@ function updateTaskbar() {
     
     taskbar.innerHTML = html;
 }
-// Call it once on load to show the start button
 updateTaskbar();
 
-// --- UPDATED WINDOW CONTROLS ---
 function openWindow(id) {
     document.getElementById(id).classList.add('active');
     focusWin(id);
@@ -635,7 +606,6 @@ function closeWindow(id) {
     updateTaskbar();
 }
 
-// --- NEURAL MEMORY (SAVE/LOAD) ---
 function savePosition(id, top, left) {
     const positions = JSON.parse(localStorage.getItem('iconPositions') || '{}');
     positions[id] = { top, left };
@@ -649,12 +619,11 @@ function loadPositions() {
         if (el) {
             el.style.top = positions[id].top;
             el.style.left = positions[id].left;
-            el.style.bottom = 'auto'; // Break the original CSS centering
+            el.style.bottom = 'auto'; 
         }
     });
 }
 
-// --- UPDATED DRAG ENGINE WITH MEMORY ---
 function makeIconDraggable(elementId) {
     const el = document.getElementById(elementId);
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
@@ -679,7 +648,6 @@ function makeIconDraggable(elementId) {
             let newTop = el.offsetTop - pos2;
             let newLeft = el.offsetLeft - pos1;
 
-            // Snap logic
             if (newLeft < snapThreshold) newLeft = 0;
             if (newTop < snapThreshold) newTop = 0;
             if (window.innerWidth - (newLeft + el.offsetWidth) < snapThreshold) newLeft = window.innerWidth - el.offsetWidth;
@@ -691,8 +659,7 @@ function makeIconDraggable(elementId) {
         const stop = () => {
             document.removeEventListener('mousemove', move);
             document.removeEventListener('mouseup', stop);
-            
-            // SAVE TO MEMORY
+
             savePosition(elementId, el.style.top, el.style.left);
             
             setTimeout(() => { el.style.transition = "all 0.3s"; }, 50);
@@ -710,13 +677,11 @@ function makeIconDraggable(elementId) {
     }, true);
 }
 
-// At the very bottom of your <script>
-loadPositions(); // 1. Load the memory first
+loadPositions();
 
 const iconIds = ['music-btn', 'browser-btn', 'term-btn', 'editor-btn', 'files-btn', 'stats-btn', 'kill-btn', 'lock-btn'];
-iconIds.forEach(id => makeIconDraggable(id)); // 2. Then enable dragging
+iconIds.forEach(id => makeIconDraggable(id));
 
-// --- UPDATED DRAG & DROP LOGIC ---
 window.addEventListener('dragover', (e) => e.preventDefault());
 
 window.addEventListener('drop', async (e) => {
@@ -738,13 +703,12 @@ window.addEventListener('drop', async (e) => {
                     })
                 });
                 notify(`NEURAL_INJECTION: ${file.name}`);
-                refreshFiles(); // Refresh explorer immediately
+                refreshFiles();
             } catch (err) {
                 notify("ERROR: Transmission failed.");
             }
         };
 
-        // Use DataURL for images so the server knows it's an image
         if (file.type.startsWith('image/')) {
             reader.readAsDataURL(file);
         } else {
@@ -753,7 +717,6 @@ window.addEventListener('drop', async (e) => {
     }
 });
 
-// --- UPDATED PREVIEW LOGIC ---
 async function refreshFiles() {
     try {
         const res = await fetch('http://localhost:3001/api/files');
@@ -762,7 +725,6 @@ async function refreshFiles() {
         const list = document.getElementById('file-list');
         
         list.innerHTML = files.map(f => {
-            // Detect images AND audio for the correct icon
             const isImg = f.match(/\.(jpg|jpeg|png|gif|webp)$/i);
             const isAudio = f.match(/\.(mp3|wav|ogg|m4a)$/i);
             const icon = isImg ? '🖼️' : (isAudio ? '🎵' : '📄');
@@ -798,7 +760,6 @@ async function previewFile(filename) {
     isMusicPlaying = false; 
     
     initAudioAnalysis();
-            // Update Media Window UI
             const winName = document.querySelector('#media-win #track-name');
             if (winName) winName.innerText = filename;
             
@@ -814,7 +775,6 @@ async function previewFile(filename) {
 
             openWindow('media-win');
             notify(`STREAM_ACTIVE: ${filename}`);
-            // NEW: Force update the labels in the NEURAL_CORE_AUDIO window
 const mediaTrackName = document.querySelector('#media-win #track-name');
 if (mediaTrackName) mediaTrackName.innerText = filename;
 
@@ -842,11 +802,10 @@ function minimizeWindow(id) {
     setTimeout(() => {
         win.classList.remove('active');
         updateTaskbar();
-    }, 300); // Matches the transition time
+    }, 300); 
     notify(`SYSTEM: ${id} backgrounded`);
 }
 
-// Update focusWin to "un-minimize"
 function focusWin(id) {
     const win = document.getElementById(id);
     if (!win.classList.contains('active')) {
@@ -862,7 +821,6 @@ setInterval(() => {
     const card = document.getElementById('music-progress-card');
     if (card.classList.contains('hidden')) return;
 
-    // Determine which audio source is active
     const activePlayer = isMusicPlaying ? audioStream : player;
     
     if (activePlayer.duration) {
@@ -873,21 +831,18 @@ setInterval(() => {
         const secs = Math.floor(activePlayer.currentTime % 60).toString().padStart(2, '0');
         document.getElementById('track-time').innerText = `${mins}:${secs}`;
     } else {
-        // If it's a live stream (no duration), show "LIVE"
         document.getElementById('track-time').innerText = "LIVE";
         document.getElementById('track-bar').style.width = "100%";
     }
 }, 500);
 
-// --- NEW MEDIA PLAYER LOGIC ---
 let playlist = [];
 let currentTrackIndex = 0;
 
 function togglePlayback() {
     const btn = document.getElementById('play-pause-btn');
     const trackName = document.querySelector('#media-win #track-name');
-    
-    // 1. If a local file is already loaded/paused, handle that first
+
     if (player.src && player.src !== "") {
         if (player.paused) {
             player.play();
@@ -899,7 +854,6 @@ function togglePlayback() {
         return;
     }
 
-    // 2. Default Logic: If no file is loaded, toggle the Lo-fi Radio
     isMusicPlaying = !isMusicPlaying;
     const miniCard = document.getElementById('music-progress-card');
     
@@ -922,7 +876,6 @@ function playTrack(index) {
     
     player.src = `http://localhost:3001/neural_storage/${filename}`;
     
-    // Update labels in both locations
     const winName = document.querySelector('#media-win #track-name');
     const miniName = document.querySelector('#music-progress-card #track-name');
     
@@ -947,13 +900,11 @@ function mediaPrev() {
     }
 }
 
-// Auto-play next song when finished
 player.onended = () => mediaNext();
 
-// Sync the range slider and time display
 player.ontimeupdate = () => {
     const slider = document.getElementById('media-slider');
-    const timeText = document.querySelector('#media-win #track-time'); // Targeted selection
+    const timeText = document.querySelector('#media-win #track-time');
     const trackBar = document.getElementById('track-bar'); 
 
     if (!isNaN(player.duration)) {
@@ -962,11 +913,9 @@ player.ontimeupdate = () => {
             slider.value = player.currentTime;
         }
         
-        // Update Mini-Card Bar
         const percent = (player.currentTime / player.duration) * 100;
         if(trackBar) trackBar.style.width = percent + "%";
 
-        // Update Text Display
         const cur = formatTime(player.currentTime);
         const dur = formatTime(player.duration);
         if (timeText) timeText.innerText = `${cur} / ${dur}`;
@@ -987,13 +936,11 @@ function toggleStart() {
 function toggleFullscreen(id) {
     const win = document.getElementById(id);
     if (win.style.width === "100vw") {
-        // Restore to default size
         win.style.width = "600px";
         win.style.height = "400px";
         win.style.top = "50px";
         win.style.left = "200px";
     } else {
-        // Go Fullscreen
         win.style.width = "100vw";
         win.style.height = "100vh";
         win.style.top = "0";
@@ -1002,13 +949,12 @@ function toggleFullscreen(id) {
 }
 
 function toggleMiniPlayer(e) {
-    // Prevent the click from triggering other window events
     if(e) e.stopPropagation();
 
     const stateIcon = document.getElementById('mini-state-icon');
     const mainPlayBtn = document.getElementById('play-pause-btn');
 
-    // CASE 1: Local File is active
+
     if (player.src && player.src !== "" && !player.src.includes('undefined')) {
         if (player.paused) {
             player.play();
@@ -1020,7 +966,6 @@ function toggleMiniPlayer(e) {
             if(mainPlayBtn) mainPlayBtn.innerText = "PLAY";
         }
     } 
-    // CASE 2: Lo-fi Radio is active
     else {
         if (audioStream.paused) {
             audioStream.play();
@@ -1046,7 +991,7 @@ function updateClock() {
     if (dateEl) dateEl.innerText = dateStr;
 }
 setInterval(updateClock, 1000);
-updateClock(); // Initial call
+updateClock();
 
     </script>
 
@@ -1074,6 +1019,4 @@ updateClock(); // Initial call
     </div>
 </div>
 </body>
-
 </html>
-
