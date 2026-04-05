@@ -129,13 +129,13 @@
 }
 
 /* Adjust the vertical positioning to account for larger size */
-#browser-btn { top: 105px !important; }
-#term-btn    { top: 190px !important; }
-#editor-btn  { top: 275px !important; }
-#files-btn   { top: 360px !important; }
-#stats-btn   { top: 445px !important; }
-#kill-btn    { top: 530px !important; }
-#lock-btn    { top: 615px !important; }
+#browser-btn { top: 105px; }
+#term-btn    { top: 190px; }
+#editor-btn  { top: 275px; }
+#files-btn   { top: 360px; }
+#stats-btn   { top: 445px; }
+#kill-btn    { top: 530px; }
+#lock-btn    { top: 615px; }
 
 #system-clock {
     font-size: 11px;
@@ -324,6 +324,7 @@ function initAudioAnalysis() {
     analyzer.fftSize = 64;
     dataArray = new Uint8Array(analyzer.frequencyBinCount);
 }
+
 async function navigateBrowser() {
     let url = document.getElementById('browser-url').value;
     const frame = document.getElementById('browser-frame');
@@ -492,6 +493,7 @@ function dragWindow(e, id) {
         window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
         window.onresize();
         for(let i=0; i<60; i++) pts.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:Math.random()-0.5, vy:Math.random()-0.5});
+
 function animate() {
     ctx.fillStyle = '#010409'; 
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -628,7 +630,7 @@ function makeIconDraggable(elementId) {
     const el = document.getElementById(elementId);
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
     let isDragging = false;
-    const snapThreshold = 30;
+    const snapThreshold = 0;
 
     el.onmousedown = (e) => {
         e.preventDefault();
