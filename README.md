@@ -58,7 +58,7 @@ Neural Bridge: Bypasses standard iframe restrictions for high-security sites.
 
 Auto-Kill: Instantly terminates audio/video processes when the window is closed.
 
-> [!NOTE] IT WILL NOT ALWAYS WORK
+> [!IMPORTANT] IT WILL NOT ALWAYS WORK
 
 `⌨️ TERMINAL.cli`
 Direct Injection: Execute system-level commands through a custom WebSocket bridge.
