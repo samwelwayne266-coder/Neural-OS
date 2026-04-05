@@ -58,7 +58,6 @@ Neural Bridge: Bypasses standard iframe restrictions for high-security sites.
 
 Auto-Kill: Instantly terminates audio/video processes when the window is closed.
 
-> [!IMPORTANT]
 >  IT WILL NOT ALWAYS WORK
 
 `⌨️ TERMINAL.cli`
