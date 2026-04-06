@@ -1,8 +1,5 @@
 # 🔐 NEURAL_OS
-> **DEVELOPER:** [WAYNE CORE](https://github.com/samwelwayne266-coder)  
-> **PROTOCOL:** AN OPERATING SYSTEM MADE IN A WEBSITE
 
----
 
 ### 🛰️ MISSION OVERVIEW
 **Neural OS** is a high-performance, web-based operating system simulation featuring real-time synchronization, neural background processing, and a modular window architecture. Built for the next generation of web interaction.
