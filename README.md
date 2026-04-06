@@ -72,4 +72,6 @@ Drag & Drop: Inject files directly from your desktop into the virtual /root/ dir
 
 Smart Preview: Real-time decryption and preview of images and text files.
 
+---
+
 **Copyright © 2025 WAYNE CORE**
