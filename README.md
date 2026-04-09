@@ -40,7 +40,7 @@
 
 Establish Connection: You can access the vault:
 
-On the PC: ```Open http://localhost:3000```
+On the PC: ```Open http://localhost:3001```
 
 On Other Devices (Phones/Tablets): 
 
