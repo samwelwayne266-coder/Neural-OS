@@ -935,18 +935,15 @@ function toggleStart() {
     menu.classList.toggle('hidden');
 }
 
-function toggleFullscreen(id) {
-    const win = document.getElementById(id);
-    if (win.style.width === "100vw") {
-        win.style.width = "600px";
-        win.style.height = "400px";
-        win.style.top = "50px";
-        win.style.left = "200px";
+function toggleFullscreen(winId) {
+    const elem = document.getElementById(winId);
+    
+    if (!document.fullscreenElement) {
+        elem.requestFullscreen().catch(err => {
+            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+        });
     } else {
-        win.style.width = "100vw";
-        win.style.height = "100vh";
-        win.style.top = "0";
-        win.style.left = "0";
+        document.exitFullscreen();
     }
 }
 
